@@ -172,7 +172,6 @@ async function handleCreate(interaction) {
     guildId: interaction.guild.id,
     name: projectName,
     ownerId: interaction.user.id,
-    members: [],
   });
 
   await project.save();
