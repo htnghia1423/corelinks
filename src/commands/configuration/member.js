@@ -105,8 +105,7 @@ async function handleAddMember(interaction) {
 
   const collectorProject = reply.createMessageComponentCollector({
     componentType: ComponentType.StringSelect,
-    filter: (i) =>
-      i.user.id === interaction.user.id && i.customId === "project",
+    filter: (i) => i.user.id === interaction.user.id,
     time: 60_000,
   });
 

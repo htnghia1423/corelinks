@@ -12,11 +12,13 @@ const EmbedProjectInfo = (project, interaction) => {
       },
       {
         name: "Owner",
-        value: interaction.guild.members.cache.get(project.ownerId).user.tag,
+        value: `<@${project.ownerId}>`,
       },
       {
         name: "Members",
-        value: project.members.map((memberId) => `<@${memberId}>`).join("\n"),
+        value:
+          project.members.map((memberId) => `<@${memberId}>`).join("\n") ||
+          "No members",
       },
       {
         name: "Created At",
