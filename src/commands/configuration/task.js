@@ -196,7 +196,7 @@ async function handleCreateTask(interaction) {
   const collector = reply.createMessageComponentCollector({
     conponentType: ComponentType.Button,
     filter: (i) => i.user.id === interaction.user.id,
-    time: 30_000,
+    time: 60_000,
   });
 
   collector.on("collect", async (i) => {
@@ -233,7 +233,7 @@ async function handleCreateTask(interaction) {
 
         const filter = (i) => i.customId === `create-task-${i.user.id}`;
 
-        i.awaitModalSubmit({ filter, time: 30_000 })
+        i.awaitModalSubmit({ filter, time: 60_000 })
           .then(async (modalInteraction) => {
             const title =
               modalInteraction.fields.getTextInputValue("task-title");
@@ -314,7 +314,7 @@ async function handleTaskSetting(interaction, options) {
   const collectorProject = replyPickProject.createMessageComponentCollector({
     componentType: ComponentType.StringSelect,
     filter: (i) => i.user.id === interaction.user.id,
-    time: 30_000,
+    time: 60_000,
   });
 
   collectorProject.on("collect", async (i) => {
@@ -353,7 +353,7 @@ async function handleTaskSetting(interaction, options) {
     const collectorTask = replyPickTask.createMessageComponentCollector({
       componentType: ComponentType.StringSelect,
       filter: (i) => i.user.id === interaction.user.id,
-      time: 30_000,
+      time: 60_000,
     });
 
     collectorTask.on("collect", async (i) => {
@@ -377,7 +377,7 @@ async function handleTaskSetting(interaction, options) {
         const collectorMenu = replyPickMenu.createMessageComponentCollector({
           componentType: menu.data.type,
           filter: (i) => i.user.id === interaction.user.id,
-          time: 30_000,
+          time: 60_000,
         });
 
         collectorMenu.on("collect", async (i) => {
@@ -477,7 +477,7 @@ async function handleSetDueDate(interaction) {
       const filter = (i) => i.customId === `set-due-date-${i.user.id}`;
 
       await i
-        .awaitModalSubmit({ filter, time: 30_000 })
+        .awaitModalSubmit({ filter, time: 60_000 })
         .then(async (modalInteraction) => {
           const dueDateString =
             modalInteraction.fields.getTextInputValue("due-date");

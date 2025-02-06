@@ -249,7 +249,7 @@ async function handleDeleteOne(interaction, client) {
   const targetUserInteraction = await reply
     .awaitMessageComponent({
       filter: (i) => i.user.id === interaction.user.id,
-      time: 30_000,
+      time: 60_000,
     })
     .catch(async () => {
       const embedTimeout = new EmbedBuilder()
@@ -362,7 +362,7 @@ async function handleDeleteAll(interaction, client) {
   const targetUserInteraction = await reply
     .awaitMessageComponent({
       filter: (i) => i.user.id === interaction.user.id,
-      time: 30_000,
+      time: 60_000,
     })
     .catch(async () => {
       const embedTimeout = new EmbedBuilder()

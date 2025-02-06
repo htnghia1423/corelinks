@@ -258,7 +258,7 @@ async function handleRemoveMember(interaction) {
   const collector = interaction.channel.createMessageComponentCollector({
     componentType: ComponentType.Button,
     filter: (i) => i.user.id === interaction.user.id,
-    time: 30_000,
+    time: 60_000,
   });
 
   collector.on("collect", async (i) => {
