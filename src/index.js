@@ -30,7 +30,7 @@ const client = new Client({
     commandsPath: path.join(__dirname, "commands"),
     eventsPath: path.join(__dirname, "events"),
     validationsPath: path.join(__dirname, "validations"),
-    devGuildIds: [process.env.GUILD_ID],
+    devGuildIds: process.env.GUILDS_ID.split(","),
     devUserIds: process.env.DEVS_ID.split(","),
   });
 
