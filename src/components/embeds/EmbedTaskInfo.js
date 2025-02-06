@@ -16,7 +16,7 @@ module.exports = (task, interaction) => {
       },
       {
         name: "Priority",
-        value: task.priority,
+        value: task.priority || "No priority provided",
       },
       {
         name: "Status",
@@ -24,13 +24,13 @@ module.exports = (task, interaction) => {
       },
       {
         name: "Due Date",
-        value: convertToUTC(task.dueDate),
+        value: convertToUTC(task.dueDate) || "No due date provided",
       },
       {
         name: "Assignees",
-        value: task.assigneesId
-          .map((assigneeId) => `<@${assigneeId}>`)
-          .join("\n"),
+        value:
+          task.assigneesId.map((assigneeId) => `<@${assigneeId}>`).join("\n") ||
+          "No assignees provided",
       },
       {
         name: "Created At",

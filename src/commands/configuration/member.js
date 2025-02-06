@@ -153,21 +153,21 @@ async function handleAddMember(interaction) {
 
       const members = i.values;
 
+      const invalidMembers = invalidMembersAddingToProject(
+        members,
+        project,
+        interaction
+      );
+
+      if (invalidMembers.length > 0) {
+        await i.reply({
+          content: `You can't add: ${invalidMembers.join(", ")}`,
+          flags: 64,
+        });
+        return;
+      }
+
       for (const memberId of members) {
-        const invalidMembers = invalidMembersAddingToProject(
-          members,
-          project,
-          interaction
-        );
-
-        if (invalidMembers.length > 0) {
-          await i.reply({
-            content: `You can't add: ${invalidMembers.join(", ")}`,
-            flags: 64,
-          });
-          return;
-        }
-
         const member = interaction.guild.members.cache.get(memberId);
         project.members.push(member.id);
       }
