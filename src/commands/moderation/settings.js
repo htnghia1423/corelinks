@@ -65,7 +65,7 @@ module.exports = {
 
   options: {
     // Option for delete command
-    //   deleted: true,
+    // deleted: true,
   },
 };
 
@@ -73,7 +73,7 @@ module.exports = {
 async function handleOverdueNotiFication(interaction) {
   const channel = interaction.options.getChannel("channel");
 
-  if (!channelId) {
+  if (!channel) {
     interaction.reply("Please provide a channel");
   }
 
