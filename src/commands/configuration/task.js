@@ -106,6 +106,13 @@ const data = new SlashCommandBuilder()
           .setName("assignee")
           .setDescription("Remove the assignee of a task")
       )
+
+      // Remove due date for task command
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("due-date")
+          .setDescription("Remove the due date of a task.")
+      )
   );
 
 // Function run when the command is called
@@ -159,6 +166,11 @@ async function run({ interaction, client, handler }) {
           // Run the remove assignee command
           case "assignee":
             await handleRemoveAssignee(interaction);
+            break;
+
+          // Run the remove due date command
+          case "due-date":
+            await handleRemoveDueDate(interaction);
             break;
         }
         break;
@@ -803,6 +815,69 @@ async function handleRemoveAssignee(interaction) {
 
             await i.editReply({
               content: "Action remove assignee canceled!",
+              embeds: [],
+              components: [],
+            });
+            break;
+        }
+      });
+    },
+  });
+}
+
+//Function to handle remove due date for task
+async function handleRemoveDueDate(interaction) {
+  await handleTaskSetting(interaction, {
+    title: "Remove Due Date for Task",
+    description:
+      "Please choose the project you want to remove the due date for.",
+    onTaskSelected: async (i, task, selectedProject) => {
+      const embedConfirm = EmbedConfirm(
+        "Remove Due Date",
+        `Are you sure you want to remove the due date: **${convertToUTC(
+          task.dueDate
+        )}** for the task **${task.title}**?`,
+        "You have 60 seconds to confirm this action."
+      );
+
+      const buttonsConfirm = ButtonsConfirmDelete;
+
+      const actionRow = new ActionRowBuilder().addComponents(buttonsConfirm);
+
+      await i.deferReply();
+
+      const reply = await i.editReply({
+        embeds: [embedConfirm],
+        components: [actionRow],
+      });
+
+      const collector = reply.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        filter: (i) => i.user.id === interaction.user.id,
+        time: 60_000,
+      });
+
+      collector.on("collect", async (i) => {
+        switch (i.customId) {
+          case "confirm":
+            task.dueDate = null;
+
+            await task.save();
+
+            await i.deferReply();
+
+            await i.editReply({
+              content: "Due date removed successfully!",
+              embeds: [],
+              components: [],
+            });
+            break;
+
+          case "cancel":
+            await i.deferReply();
+
+            await i.editReply({
+              content: "Action remove due date canceled!",
               embeds: [],
               components: [],
             });
