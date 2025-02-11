@@ -56,9 +56,13 @@ module.exports = (client) => {
           const dueDate = task.dueDate;
           const now = new Date();
 
-          if (dueDate < now && task.status !== "done") {
+          if (
+            dueDate < now &&
+            task.status !== "done" &&
+            task.assigneesId.length > 0
+          ) {
             await targetChannel.send(
-              `Task "${task.name}" is over due! Assignees: ${task.assigneesId
+              `Task **${task.title}** is over due! Assignees: ${task.assigneesId
                 .map((id) => `<@${id}>`)
                 .join(", ")}.\nPlease check it now!`
             );
