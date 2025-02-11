@@ -340,6 +340,13 @@ async function handleDeleteOne(interaction, client) {
 
   switch (targetUserChoice) {
     case "confirm":
+      if (projectToDelete.roleId) {
+        const role = interaction.guild.roles.cache.get(projectToDelete.roleId);
+        if (role) {
+          await role.delete();
+        }
+      }
+
       await Project.deleteOne(queryDeleteOne);
 
       const embedConfirm = new EmbedBuilder()
@@ -453,6 +460,15 @@ async function handleDeleteAll(interaction) {
 
   switch (targetUserChoice) {
     case "confirm":
+      projectsToDelete.forEach(async (project) => {
+        if (project.roleId) {
+          const role = interaction.guild.roles.cache.get(project.roleId);
+          if (role) {
+            await role.delete();
+          }
+        }
+      });
+
       await Project.deleteMany(queryDeleteAll);
 
       const embedConfirm = new EmbedBuilder()
