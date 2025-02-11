@@ -13,8 +13,10 @@ const { convertToPlus7 } = require("../../utils/convertTime");
 const EmbedProjectInfo = require("../../components/embeds/EmbedProjectInfo");
 const {
   ButtonsConfirmDelete,
+  ButtonsConfirmCreate,
 } = require("../../components/buttons/ButtonConfirm");
 const { getProjectsFromInteraction } = require("../../utils/project");
+const { getAllMembers } = require("../../utils/member");
 
 //Function to handle the slash command run
 /**
@@ -45,6 +47,15 @@ async function run({ interaction, client, handler }) {
 
           case "all":
             handleDeleteAll(interaction, client);
+            break;
+        }
+        break;
+
+      //Run command role
+      case "role":
+        switch (subCommand) {
+          case "create":
+            await handleCreateRole(interaction);
             break;
         }
         break;
@@ -87,7 +98,7 @@ const data = new SlashCommandBuilder()
       )
   )
 
-  //Delete project command
+  //Delete project commands
   .addSubcommandGroup((subcommandGroup) =>
     subcommandGroup
       .setName("delete")
@@ -128,6 +139,27 @@ const data = new SlashCommandBuilder()
           .setDescription("The project you want to view!")
           .setRequired(true)
           .setAutocomplete(true)
+      )
+  )
+
+  //Role configuration for project commands
+  .addSubcommandGroup((subcommandGroup) =>
+    subcommandGroup
+      .setName("role")
+      .setDescription("Role configuration for project")
+
+      //Create role for project command
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("create")
+          .setDescription("Create a role for the project")
+          .addStringOption((option) =>
+            option
+              .setName("project")
+              .setDescription("The project you want to create a role for!")
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
       )
   );
 
@@ -176,8 +208,47 @@ async function handleCreate(interaction) {
 
   await project.save();
 
-  interaction.editReply({
-    content: `Project **${projectName}** created successfully.`,
+  const actionRow = new ActionRowBuilder().addComponents(ButtonsConfirmCreate);
+
+  const reply = await interaction.editReply({
+    content: `Project **${projectName}** created successfully.\n Do you want to create a role for this project? (You can always create it later by using \`/project role create\`)`,
+    components: [actionRow],
+  });
+
+  const collector = reply.createMessageComponentCollector({
+    filter: (i) => i.user.id === interaction.user.id,
+    time: 60_000,
+  });
+
+  collector.on("collect", async (i) => {
+    if (i.customId === "create") {
+      try {
+        const role = await i.guild.roles.create({
+          name: projectName,
+          color: "Random",
+        });
+
+        await i.update({
+          content: `Role ${role} created successfully.`,
+          components: [],
+        });
+
+        await project.updateOne({ roleId: role.id });
+
+        const member = await i.guild.members.fetch(project.ownerId);
+        await member.roles.add(role);
+      } catch (error) {
+        await i.update({
+          content: `Failed to create role. Please check my permissions.`,
+          components: [],
+        });
+      }
+    } else if (i.customId === "cancel") {
+      await i.update({
+        content: `Role creation canceled.`,
+        components: [],
+      });
+    }
   });
 }
 
@@ -305,7 +376,7 @@ async function handleDeleteOne(interaction, client) {
 }
 
 //Function to handle delete all projects
-async function handleDeleteAll(interaction, client) {
+async function handleDeleteAll(interaction) {
   await interaction.deferReply();
 
   let queryDeleteAll = {
@@ -525,4 +596,65 @@ async function handleView(interaction) {
   const embed = EmbedProjectInfo(targetProject, interaction);
 
   interaction.editReply({ embeds: [embed] });
+}
+
+//Function to handle create role for project
+async function handleCreateRole(interaction) {
+  const projecId = interaction.options.getString("project");
+
+  if (!projecId) {
+    interaction.reply({
+      content: "Please choose a project to create a role for.",
+      ephemeral: true,
+    });
+  }
+
+  await interaction.deferReply();
+
+  const project = await Project.findOne({
+    guildId: interaction.guild.id,
+    _id: projecId,
+  });
+
+  if (!project) {
+    interaction.editReply({
+      content: `Project **${project.name}** does not exist. Please use command \`/project list\` to see all your projects.`,
+    });
+    return;
+  }
+
+  const existingRole = interaction.guild.roles.cache.find(
+    (role) => role.name === project.name
+  );
+
+  if (existingRole) {
+    interaction.editReply({
+      content: `Role ${existingRole} for project **${project.name}** already exists.`,
+    });
+    return;
+  }
+
+  try {
+    const role = await interaction.guild.roles.create({
+      name: project.name,
+      color: "Random",
+    });
+
+    await project.updateOne({ roleId: role.id });
+
+    await interaction.editReply({
+      content: `Role ${role} created successfully.`,
+    });
+
+    const allMembers = await getAllMembers(projecId, interaction);
+
+    for (const memberId of allMembers) {
+      const member = interaction.guild.members.cache.get(memberId);
+      await member.roles.add(role);
+    }
+  } catch (error) {
+    await interaction.editReply({
+      content: `Failed to create role. Please check my permissions.`,
+    });
+  }
 }
