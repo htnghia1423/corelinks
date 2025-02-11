@@ -113,6 +113,11 @@ const data = new SlashCommandBuilder()
           .setName("due-date")
           .setDescription("Remove the due date of a task.")
       )
+  )
+
+  // Delete task command
+  .addSubcommand((subcommand) =>
+    subcommand.setName("delete").setDescription("Delete a task")
   );
 
 // Function run when the command is called
@@ -185,6 +190,11 @@ async function run({ interaction, client, handler }) {
       // Run the view task command
       case "view":
         await handleViewTask(interaction);
+        break;
+
+      // Run the delete task command
+      case "delete":
+        await handleDeleteTask(interaction);
         break;
     }
   }
@@ -878,6 +888,72 @@ async function handleRemoveDueDate(interaction) {
 
             await i.editReply({
               content: "Action remove due date canceled!",
+              embeds: [],
+              components: [],
+            });
+            break;
+        }
+      });
+    },
+  });
+}
+
+//Function to handle delete task
+async function handleDeleteTask(interaction) {
+  await handleTaskSetting(interaction, {
+    title: "Delete Task",
+    description: "Please choose the project you want to delete the task for.",
+    onTaskSelected: async (i, task, selectedProject) => {
+      if (selectedProject.ownerId !== i.user.id) {
+        await i.reply({
+          content:
+            "You are not the owner of this project! You can't delete the task.",
+        });
+        return;
+      }
+
+      const embedConfirm = EmbedConfirm(
+        "Delete Task",
+        `Are you sure you want to delete the task **${task.title}**?`,
+        "You have 60 seconds to confirm this action."
+      );
+
+      const buttonsConfirm = ButtonsConfirmDelete;
+
+      const actionRow = new ActionRowBuilder().addComponents(buttonsConfirm);
+
+      await i.deferReply();
+
+      const reply = await i.editReply({
+        embeds: [embedConfirm],
+        components: [actionRow],
+      });
+
+      const collector = reply.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        filter: (i) => i.user.id === interaction.user.id,
+        time: 60_000,
+      });
+
+      collector.on("collect", async (i) => {
+        switch (i.customId) {
+          case "confirm":
+            await Task.findByIdAndDelete(task._id);
+
+            await i.deferReply();
+
+            await i.editReply({
+              content: "Task deleted successfully!",
+              embeds: [],
+              components: [],
+            });
+            break;
+
+          case "cancel":
+            await i.deferReply();
+
+            await i.editReply({
+              content: "Action delete task canceled!",
               embeds: [],
               components: [],
             });
