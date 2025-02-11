@@ -71,8 +71,26 @@ async function invalidMembersRemoveFromTask(members, task, interaction) {
   return invalidMembers;
 }
 
+async function getAllMembers(projectId, interaction) {
+  const project = await Project.findOne({
+    guildId: interaction.guild.id,
+    _id: projectId,
+  });
+
+  const allMembers = [];
+
+  allMembers.push(project.ownerId);
+
+  for (const memberId of project.members) {
+    allMembers.push(memberId);
+  }
+
+  return allMembers;
+}
+
 module.exports = {
   invalidMembersAddingToProject,
   invalidMembersAssignToTask,
   invalidMembersRemoveFromTask,
+  getAllMembers,
 };
