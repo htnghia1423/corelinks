@@ -13,15 +13,20 @@ const {
 const { getProjectsFromInteraction } = require("../../utils/project");
 const {
   ButtonsConfirmCreate,
+  ButtonsConfirmDelete,
 } = require("../../components/buttons/ButtonConfirm");
 const Task = require("../../models/Task");
 const MenuProject = require("../../components/menuSelect/MenuProject");
 const MenuTask = require("../../components/menuSelect/MenuTask");
-const { invalidMembersAssignToTask } = require("../../utils/member");
+const {
+  invalidMembersAssignToTask,
+  invalidMembersRemoveFromTask,
+} = require("../../utils/member");
 const { convertToUTC } = require("../../utils/convertTime");
 const { ListPriority, ListStatus } = require("../../components/list/ListData");
 const { getTasksFromInteraction } = require("../../utils/task");
 const EmbedTaskInfo = require("../../components/embeds/EmbedTaskInfo");
+const EmbedConfirm = require("../../components/embeds/EmbedConfirm");
 
 // Data for the command
 const data = new SlashCommandBuilder()
@@ -87,6 +92,20 @@ const data = new SlashCommandBuilder()
           .setRequired(true)
           .setAutocomplete(true)
       )
+  )
+
+  // Remove command group
+  .addSubcommandGroup((subcommandGroup) =>
+    subcommandGroup
+      .setName("remove")
+      .setDescription("Remove the task's properties")
+
+      // Remove assignee for task command
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("assignee")
+          .setDescription("Remove the assignee of a task")
+      )
   );
 
 // Function run when the command is called
@@ -130,6 +149,16 @@ async function run({ interaction, client, handler }) {
           // Run the set status command
           case "status":
             await handleSetStatus(interaction);
+            break;
+        }
+        break;
+
+      //Run the remove commands
+      case "remove":
+        switch (subcommand) {
+          // Run the remove assignee command
+          case "assignee":
+            await handleRemoveAssignee(interaction);
             break;
         }
         break;
@@ -289,6 +318,7 @@ async function handleTaskSetting(interaction, options) {
     menuBuilder,
     onTaskSelected,
     onMenuSelected,
+    updateDescription,
     footerText = "You have 30 seconds to choosing.",
   } = options;
 
@@ -359,6 +389,10 @@ async function handleTaskSetting(interaction, options) {
     collectorTask.on("collect", async (i) => {
       const task = tasks.find((task) => task._id.toString() === i.values[0]);
 
+      if (updateDescription) {
+        embed.setDescription(updateDescription(task, selectedProject));
+      }
+
       if (onTaskSelected) {
         await onTaskSelected(i, task, selectedProject);
       }
@@ -395,6 +429,8 @@ async function handleSetAssignee(interaction) {
   await handleTaskSetting(interaction, {
     title: "Set Assignee for Task",
     description: "Please choose the project you want to set the assignee for.",
+    updateDescription: (task, selectedProject) =>
+      `Please select the users you want to set as assignee for task **${task.title}** in project **${selectedProject.name}**.`,
     menuBuilder: (task, selectedProject) => {
       const memberAmountInProject = selectedProject.members.length + 1;
 
@@ -528,6 +564,8 @@ async function handleSetPriority(interaction) {
   await handleTaskSetting(interaction, {
     title: "Set Priority for Task",
     description: "Please choose the project you want to set the priority for.",
+    updateDescription: (task, selectedProject) =>
+      `Please select the priority for task **${task.title}** in project **${selectedProject.name}**.`,
     menuBuilder: () => {
       const listPriority = ListPriority;
 
@@ -582,6 +620,8 @@ async function handleSetStatus(interaction) {
   await handleTaskSetting(interaction, {
     title: "Set Status for Task",
     description: "Please choose the project you want to set the status for.",
+    updateDescription: (task, selectedProject) =>
+      `Please select the status for task **${task.title}** in project **${selectedProject.name}**.`,
     menuBuilder: () => {
       const listStatus = ListStatus;
 
@@ -652,5 +692,123 @@ async function handleViewTask(interaction) {
 
   await interaction.editReply({
     embeds: [embed],
+  });
+}
+
+//Function to handle remove assignee for task
+async function handleRemoveAssignee(interaction) {
+  await handleTaskSetting(interaction, {
+    title: "Remove Assignee for Task",
+    description:
+      "Please choose the project you want to remove the assignee for.",
+    updateDescription: (task, selectedProject) =>
+      `Please select the users you want to remove as assignee for task **${
+        task.title
+      }** in project **${
+        selectedProject.name
+      }**. \n Members already assigned: ${task.assigneesId
+        .map((id) => `<@${id}>`)
+        .join(", ")}`,
+    menuBuilder: (task) => {
+      const assignees = task.assigneesId;
+
+      return new UserSelectMenuBuilder()
+        .setCustomId("members")
+        .setPlaceholder("Select members to remove from the task")
+        .setMinValues(1)
+        .setMaxValues(assignees.length);
+    },
+
+    onTaskSelected: async (i, task, selectedProject) => {
+      if (task.assigneesId.length === 0) {
+        await i.reply({
+          content: "There are no assignees in this task!",
+        });
+        return;
+      }
+    },
+
+    onMenuSelected: async (i, task, selectedProject) => {
+      const members = i.values;
+
+      if (members.length === 0) {
+        await i.reply({
+          content: "You need to select at least one member!",
+        });
+        return;
+      }
+
+      const invalidMembers = await invalidMembersRemoveFromTask(
+        members,
+        task,
+        interaction
+      );
+
+      if (invalidMembers.length > 0) {
+        await i.reply({
+          content: `Invalid members: ${invalidMembers.join(", ")}`,
+        });
+        return;
+      }
+
+      const memberMentions = members
+        .map((memberId) => `<@${memberId}>`)
+        .join(", ");
+
+      const embedConfirm = EmbedConfirm(
+        "Remove Assignees",
+        `Are you sure you want to remove the assignees: ${memberMentions} from the task **${task.title}**?`,
+        "You have 60 seconds to confirm this action."
+      );
+
+      const buttonsConfirm = ButtonsConfirmDelete;
+
+      const actionRow = new ActionRowBuilder().addComponents(buttonsConfirm);
+
+      await i.deferReply();
+
+      const reply = await i.editReply({
+        embeds: [embedConfirm],
+        components: [actionRow],
+      });
+
+      const collector = reply.createMessageComponentCollector({
+        componentType: ComponentType.Button,
+        filter: (i) => i.user.id === interaction.user.id,
+        time: 60_000,
+      });
+
+      collector.on("collect", async (i) => {
+        switch (i.customId) {
+          case "confirm":
+            members.forEach((memberId) => {
+              task.assigneesId = task.assigneesId.filter(
+                (assignee) => assignee !== memberId
+              );
+            });
+
+            await task.save();
+
+            await i.deferReply();
+
+            await i.editReply({
+              content: "Assignees removed successfully!",
+              embeds: [],
+              components: [],
+            });
+            break;
+
+          case "cancel":
+            await i.deferReply();
+
+            await i.editReply({
+              content: "Action remove assignee canceled!",
+              embeds: [],
+              components: [],
+            });
+            break;
+        }
+      });
+    },
   });
 }
