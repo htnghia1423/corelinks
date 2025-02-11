@@ -58,9 +58,12 @@ async function run({ interaction, client, handler }) {
   const subcommand = interaction.options.getSubcommand();
 
   switch (subcommand) {
+    //Add member to project command
     case "add":
       await handleAddMember(interaction);
       break;
+
+    //Remove member from project command
     case "remove":
       await handleRemoveMember(interaction);
       break;
@@ -170,6 +173,12 @@ async function handleAddMember(interaction) {
       for (const memberId of members) {
         const member = interaction.guild.members.cache.get(memberId);
         project.members.push(member.id);
+
+        if (project.roleId) {
+          const role = interaction.guild.roles.cache.get(project.roleId);
+
+          await member.roles.add(role);
+        }
       }
 
       await project.save();
@@ -242,7 +251,7 @@ async function handleRemoveMember(interaction) {
 
   const embedConfirmation = EmbedConfirm(
     "Remove Member",
-    `Are you sure you want to remove **${targetMember.username}** from the project?`,
+    `Are you sure you want to remove <@${targetMemberId}> from the project **${project.name}**?`,
     "You have 30 seconds to confirm this action"
   );
 
@@ -263,6 +272,12 @@ async function handleRemoveMember(interaction) {
 
   collector.on("collect", async (i) => {
     if (i.customId === "confirm") {
+      const member = interaction.guild.members.cache.get(targetMemberId);
+      const role = interaction.guild.roles.cache.get(project.roleId);
+      if (role) {
+        member.roles.remove(role);
+      }
+
       project.members = members.filter((member) => member !== targetMemberId);
 
       await project.save();
