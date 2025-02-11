@@ -44,7 +44,35 @@ async function invalidMembersAssignToTask(members, task, interaction) {
   return invalidMembers;
 }
 
+async function invalidMembersRemoveFromTask(members, task, interaction) {
+  const invalidMembers = [];
+  const project = await Project.findOne({ _id: task.projectId });
+
+  for (const memberId of members) {
+    const member = interaction.guild.members.cache.get(memberId);
+
+    if (!project.members.includes(memberId)) {
+      invalidMembers.push(member.user.username + " (not in project)");
+    }
+
+    if (!task.assigneesId.includes(memberId)) {
+      invalidMembers.push(member.user.username + " (not assigned)");
+    }
+
+    if (memberId === project.ownerId) {
+      invalidMembers.push(member.user.username + " (project owner)");
+    }
+
+    if (member.user.bot) {
+      invalidMembers.push(member.user.username + " (bot)");
+    }
+  }
+
+  return invalidMembers;
+}
+
 module.exports = {
   invalidMembersAddingToProject,
   invalidMembersAssignToTask,
+  invalidMembersRemoveFromTask,
 };
