@@ -17,6 +17,9 @@ const ProjectSchema = new Schema(
     members: {
       type: [String],
     },
+    roleId: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
