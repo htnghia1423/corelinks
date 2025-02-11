@@ -57,6 +57,7 @@ module.exports = (client) => {
           const now = new Date();
 
           if (
+            dueDate !== null &&
             dueDate < now &&
             task.status !== "done" &&
             task.assigneesId.length > 0
