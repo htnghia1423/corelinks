@@ -7,6 +7,7 @@ const {
   StringSelectMenuOptionBuilder,
   ComponentType,
   ChatInputCommandInteraction,
+  ChannelType,
 } = require("discord.js");
 const Project = require("../../models/Project");
 const { convertToPlus7 } = require("../../utils/convertTime");
@@ -56,6 +57,15 @@ async function run({ interaction, client, handler }) {
         switch (subCommand) {
           case "create":
             await handleCreateRole(interaction);
+            break;
+        }
+        break;
+
+      //Run command workspace
+      case "workspace":
+        switch (subCommand) {
+          case "create":
+            await handleCreateWorkspace(interaction);
             break;
         }
         break;
@@ -157,6 +167,27 @@ const data = new SlashCommandBuilder()
             option
               .setName("project")
               .setDescription("The project you want to create a role for!")
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
+      )
+  )
+
+  //Workspace for the project commands
+  .addSubcommandGroup((subcommandGroup) =>
+    subcommandGroup
+      .setName("workspace")
+      .setDescription("Workspace configuration for project")
+
+      //Create workspace for project command
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("create")
+          .setDescription("Create a workspace for the project")
+          .addStringOption((option) =>
+            option
+              .setName("project")
+              .setDescription("The project you want to create a workspace for!")
               .setRequired(true)
               .setAutocomplete(true)
           )
@@ -674,3 +705,114 @@ async function handleCreateRole(interaction) {
     });
   }
 }
+
+//Function to handle create workspace for project
+async function handleCreateWorkspace(interaction) {
+  const projectId = interaction.options.getString("project");
+
+  if (!projectId) {
+    interaction.reply({
+      content: "Please choose a project to create a workspace for.",
+      ephemeral: true,
+    });
+  }
+
+  const project = await Project.findOne({
+    guildId: interaction.guild.id,
+    _id: projectId,
+  });
+
+  await interaction.deferReply();
+
+  if (!project) {
+    interaction.editReply({
+      content: `Project does not exist. Please use command \`/project list\` to see all your projects.`,
+    });
+    return;
+  }
+
+  if (project.workSpaceId) {
+    interaction.editReply({
+      content: `Workspace for project **${project.name}** already exists.Please try another project.`,
+    });
+    return;
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("Create Workspace")
+    .setColor("Random")
+    .setDescription(`I will create the structure for your workspace in project **${
+    project.name
+  }** like this: \n
+                    🔽 **${project.name
+                      .toUpperCase()
+                      .trim()
+                      .replace(/ /g, "-")}**\n
+                    **#** notification\n
+                    **#** chat\n
+                    **#** reports\n
+                    🔈voice-meeting`);
+
+  const buttonsComfirm = ButtonsConfirmCreate;
+
+  const actionRow = new ActionRowBuilder().addComponents(buttonsComfirm);
+
+  const reply = await interaction.editReply({
+    embeds: [embed],
+    components: [actionRow],
+  });
+
+  const collector = reply.createMessageComponentCollector({
+    filter: (i) => i.user.id === interaction.user.id,
+    time: 60_000,
+  });
+
+  collector.on("collect", async (i) => {
+    if (i.customId === "create") {
+      const categoryChannel = await i.guild.channels.create({
+        name: project.name,
+        type: ChannelType.GuildCategory,
+      });
+
+      for (const channel of channels) {
+        await categoryChannel.children.create({
+          name: channel.name,
+          type: channel.type,
+        });
+      }
+
+      await project.updateOne({ workSpaceId: categoryChannel.id });
+
+      await i.update({
+        content: `Workspace for project **${project.name}** created successfully.`,
+        embeds: [],
+        components: [],
+      });
+    } else if (i.customId === "cancel") {
+      await i.update({
+        content: `Workspace creation canceled.`,
+        embeds: [],
+        components: [],
+      });
+    }
+  });
+}
+
+const channels = [
+  {
+    name: "notification",
+    type: ChannelType.GuildText,
+  },
+  {
+    name: "chat",
+    type: ChannelType.GuildText,
+  },
+  {
+    name: "reports",
+    type: ChannelType.GuildText,
+  },
+  {
+    name: "voice-meeting",
+    type: ChannelType.GuildVoice,
+  },
+];

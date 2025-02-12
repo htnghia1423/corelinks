@@ -20,6 +20,9 @@ const ProjectSchema = new Schema(
     roleId: {
       type: String,
     },
+    workSpaceId: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
