@@ -10,6 +10,10 @@ const OverdueNotiSchema = new Schema(
       type: String,
       required: true,
     },
+    projectId: {
+      type: String,
+      required: true,
+    },
   },
   {
     timestamps: true,

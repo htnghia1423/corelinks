@@ -9,7 +9,10 @@ const { getTasksFromInteraction } = require("../../utils/task");
 
 module.exports = async (interaction, client) => {
   if (!interaction.isAutocomplete()) return;
-  if (!["task", "member", "project"].includes(interaction.commandName)) return;
+  if (
+    !["task", "member", "project", "settings"].includes(interaction.commandName)
+  )
+    return;
 
   const focusedOption = interaction.options.getFocused(true);
 

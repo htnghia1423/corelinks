@@ -38,21 +38,20 @@ module.exports = (client) => {
           continue;
         }
 
-        const allProjects = await Project.find({
-          guildId: noti.guildId,
-        });
+        const targetProject = await Project.findById(noti.projectId);
 
-        const allTask = [];
-
-        for (const project of allProjects) {
-          const tasks = await Task.find({
-            projectId: project._id.toString(),
+        if (!targetProject) {
+          await OverdueNoti.findByIdAndDelete({
+            _id: noti._id,
           });
-
-          allTask.push(...tasks);
+          continue;
         }
 
-        for (const task of allTask) {
+        const tasks = await Task.find({
+          projectId: targetProject._id.toString(),
+        });
+
+        for (const task of tasks) {
           const dueDate = task.dueDate;
           const now = new Date();
 
