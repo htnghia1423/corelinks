@@ -27,6 +27,7 @@ const { ListPriority, ListStatus } = require("../../components/list/ListData");
 const { getTasksFromInteraction } = require("../../utils/task");
 const EmbedTaskInfo = require("../../components/embeds/EmbedTaskInfo");
 const EmbedConfirm = require("../../components/embeds/EmbedConfirm");
+const Project = require("../../models/Project");
 
 // Data for the command
 const data = new SlashCommandBuilder()
@@ -80,17 +81,38 @@ const data = new SlashCommandBuilder()
       )
   )
 
-  // View task command
-  .addSubcommand((subcommand) =>
-    subcommand
+  //View task commands group
+  .addSubcommandGroup((subcommandGroup) =>
+    subcommandGroup
       .setName("view")
       .setDescription("View a task")
-      .addStringOption((option) =>
-        option
-          .setName("task")
-          .setDescription("The task you want to view")
-          .setRequired(true)
-          .setAutocomplete(true)
+
+      // View a task command
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("one")
+          .setDescription("View a task")
+          .addStringOption((option) =>
+            option
+              .setName("task")
+              .setDescription("The task you want to view")
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
+      )
+
+      // View all tasks in a project command
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("all")
+          .setDescription("View all tasks in a project")
+          .addStringOption((option) =>
+            option
+              .setName("project")
+              .setDescription("The project you want to view all tasks")
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
       )
   )
 
@@ -119,7 +141,6 @@ const data = new SlashCommandBuilder()
   .addSubcommand((subcommand) =>
     subcommand.setName("delete").setDescription("Delete a task")
   );
-
 // Function run when the command is called
 /**
  *
@@ -179,6 +200,20 @@ async function run({ interaction, client, handler }) {
             break;
         }
         break;
+
+      // Run the view task commands
+      case "view":
+        switch (subcommand) {
+          // Run the view task command
+          case "one":
+            await handleViewTask(interaction);
+            break;
+
+          // Run the view all tasks in a project command
+          case "all":
+            await handleViewAllTask(interaction);
+            break;
+        }
     }
   } else {
     switch (subcommand) {
@@ -186,9 +221,6 @@ async function run({ interaction, client, handler }) {
       case "create":
         await handleCreateTask(interaction);
         break;
-
-      // Run the view task command
-      case "view":
         await handleViewTask(interaction);
         break;
 
@@ -714,6 +746,103 @@ async function handleViewTask(interaction) {
 
   await interaction.editReply({
     embeds: [embed],
+  });
+}
+
+// Function to handle view all tasks in a project
+async function handleViewAllTask(interaction) {
+  const projectId = interaction.options.getString("project");
+
+  if (!projectId) {
+    await interaction.reply({
+      content: "Please choose a project!",
+    });
+    return;
+  }
+
+  const project = await Project.findOne({
+    _id: projectId,
+  });
+
+  const tasks = await Task.find({
+    projectId: projectId,
+  });
+
+  if (tasks.length === 0) {
+    await interaction.reply({
+      content:
+        "There are no tasks in this project! Please create one by using `/task create`",
+    });
+    return;
+  }
+
+  const taskFields = [];
+
+  tasks.forEach((task) => {
+    taskFields.push({
+      name: "Task",
+      value: task.title,
+      inline: true,
+    });
+
+    taskFields.push({
+      name: "Status",
+      value: task.status,
+      inline: true,
+    });
+
+    taskFields.push({
+      name: "Priority",
+      value: task.priority,
+      inline: true,
+    });
+
+    taskFields.push({
+      name: "Due Date",
+      value: convertToUTC(task.dueDate) || "No due date provided",
+      inline: true,
+    });
+
+    taskFields.push({
+      name: "===========================",
+      value: " ",
+      inline: false,
+    });
+  });
+
+  const embed = new EmbedBuilder()
+    .setTitle(`Tasks in project **${project.name}**`)
+    .setDescription("Here are the tasks in this project:")
+    .setColor("Random")
+    .addFields(taskFields);
+
+  const menuTasks = MenuTask(tasks);
+
+  const actionRow = new ActionRowBuilder().addComponents(menuTasks);
+
+  await interaction.deferReply();
+
+  const reply = await interaction.editReply({
+    embeds: [embed],
+    components: [actionRow],
+  });
+
+  const collector = reply.createMessageComponentCollector({
+    componentType: ComponentType.StringSelect,
+    filter: (i) => i.user.id === interaction.user.id,
+    time: 60_000,
+  });
+
+  collector.on("collect", async (i) => {
+    const task = tasks.find((task) => task._id.toString() === i.values[0]);
+
+    const embed = EmbedTaskInfo(task, interaction);
+
+    await i.deferReply();
+
+    await i.editReply({
+      embeds: [embed],
+    });
   });
 }
 
