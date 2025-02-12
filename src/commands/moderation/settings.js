@@ -3,6 +3,7 @@ const {
   ChatInputCommandInteraction,
   ChannelType,
   ActionRowBuilder,
+  ComponentType,
 } = require("discord.js");
 const ms = require("ms");
 const OverdueNoti = require("../../models/OverdueNoti");
@@ -191,6 +192,7 @@ async function handleRemoveOverdueNotiFication(interaction) {
   });
 
   const collector = reply.createMessageComponentCollector({
+    componentType: ComponentType.Button,
     filter: (i) => i.user.id === interaction.user.id,
     time: 60_000,
   });
