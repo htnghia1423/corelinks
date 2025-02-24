@@ -143,7 +143,7 @@ async function handleAddMember(interaction) {
     const collectorMembers = reply.createMessageComponentCollector({
       componentType: ComponentType.UserSelect,
       filter: (i) => i.user.id === interaction.user.id,
-      time: 60_000,
+      time: 60_000 * 3,
     });
 
     collectorMembers.on("collect", async (i) => {
