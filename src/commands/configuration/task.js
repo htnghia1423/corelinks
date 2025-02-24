@@ -359,6 +359,11 @@ async function handleCreateTask(interaction) {
         break;
 
       case "cancel":
+        i.reply({
+          content: "Action create task canceled!",
+          embeds: [],
+          components: [],
+        });
         break;
     }
   });
