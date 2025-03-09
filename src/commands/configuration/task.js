@@ -792,13 +792,13 @@ async function handleViewAllTask(interaction) {
 
     taskFields.push({
       name: "Status",
-      value: task.status,
+      value: task.status || "No status provided",
       inline: true,
     });
 
     taskFields.push({
       name: "Priority",
-      value: task.priority,
+      value: task.priority || "No priority provided",
       inline: true,
     });
 
