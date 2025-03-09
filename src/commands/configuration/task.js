@@ -279,7 +279,7 @@ async function handleCreateTask(interaction) {
   const collector = reply.createMessageComponentCollector({
     conponentType: ComponentType.Button,
     filter: (i) => i.user.id === interaction.user.id,
-    time: 60_000,
+    time: 30_000,
   });
 
   collector.on("collect", async (i) => {
@@ -316,7 +316,7 @@ async function handleCreateTask(interaction) {
 
         const filter = (i) => i.customId === `create-task-${i.user.id}`;
 
-        i.awaitModalSubmit({ filter, time: 60_000 })
+        i.awaitModalSubmit({ filter, time: 60_000 * 2 })
           .then(async (modalInteraction) => {
             const title =
               modalInteraction.fields.getTextInputValue("task-title");
@@ -378,7 +378,7 @@ async function handleTaskSetting(interaction, options) {
     onTaskSelected,
     onMenuSelected,
     updateDescription,
-    footerText = "You have 30 seconds to choosing.",
+    footerText = "You have 60 seconds to choosing.",
   } = options;
 
   const embed = new EmbedBuilder()
@@ -559,7 +559,7 @@ async function handleSetDueDate(interaction) {
       const timeInput = new TextInputBuilder()
         .setLabel("Time")
         .setCustomId("time")
-        .setPlaceholder("Enter the time for the task.")
+        .setPlaceholder("Enter the time for the task. Format: HH:MM")
         .setStyle(TextInputStyle.Short);
 
       const dateActionRow = new ActionRowBuilder().addComponents(dueDateInput);
@@ -572,7 +572,7 @@ async function handleSetDueDate(interaction) {
       const filter = (i) => i.customId === `set-due-date-${i.user.id}`;
 
       await i
-        .awaitModalSubmit({ filter, time: 60_000 })
+        .awaitModalSubmit({ filter, time: 60_000 * 2 })
         .then(async (modalInteraction) => {
           const dueDateString =
             modalInteraction.fields.getTextInputValue("due-date");
