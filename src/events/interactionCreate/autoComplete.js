@@ -10,7 +10,7 @@ const { getTasksFromInteraction } = require("../../utils/task");
 module.exports = async (interaction, client) => {
   if (!interaction.isAutocomplete()) return;
   if (
-    !["task", "member", "project", "settings", "meeting"].includes(
+    !["task", "member", "project", "settings", "meeting", "workspace"].includes(
       interaction.commandName
     )
   )

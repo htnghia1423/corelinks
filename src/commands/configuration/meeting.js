@@ -17,6 +17,7 @@ const { isValidDate, isValidTime } = require("../../utils/checkFormat");
 const Meeting = require("../../models/Meeting");
 const { convertToPlus7 } = require("../../utils/convertTime");
 const { formatDateTime } = require("../../utils/format");
+const checkAndCreateUser = require("../../utils/checkAndCreateUser");
 
 //Data for the command
 const data = new SlashCommandBuilder()
@@ -51,6 +52,8 @@ const data = new SlashCommandBuilder()
 async function run({ interaction, client, handler }) {
   const subcommand = interaction.options.getSubcommand();
 
+  await checkAndCreateUser(interaction);
+
   switch (subcommand) {
     //Create meeting command
     case "create":
@@ -69,6 +72,7 @@ module.exports = {
   options: {
     //Options for the delete command
     // deleted: true,
+    premiumOnly: true,
   },
 };
 

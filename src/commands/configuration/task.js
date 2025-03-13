@@ -28,6 +28,8 @@ const { getTasksFromInteraction } = require("../../utils/task");
 const EmbedTaskInfo = require("../../components/embeds/EmbedTaskInfo");
 const EmbedConfirm = require("../../components/embeds/EmbedConfirm");
 const Project = require("../../models/Project");
+const User = require("../../models/User");
+const checkAndCreateUser = require("../../utils/checkAndCreateUser");
 
 // Data for the command
 const data = new SlashCommandBuilder()
@@ -159,6 +161,8 @@ async function run({ interaction, client, handler }) {
   const subcommandGroup = interaction.options.getSubcommandGroup();
   const subcommand = interaction.options.getSubcommand();
 
+  await checkAndCreateUser(interaction);
+
   if (subcommandGroup) {
     switch (subcommandGroup) {
       // Run the set commands
@@ -258,6 +262,20 @@ async function handleCreateTask(interaction) {
       content: "Project not found!",
       ephemeral: true,
     });
+  }
+
+  const user = await User.findOne({ userId: interaction.user.id });
+  if (user && user.userType !== "premium") {
+    countTasks = await Task.countDocuments({
+      projectId: project._id.toString(),
+    });
+
+    if (countTasks >= 10) {
+      interaction.reply({
+        content: "You need to be a premium user to create more than 10 tasks!",
+      });
+      return;
+    }
   }
 
   const embed = new EmbedBuilder()

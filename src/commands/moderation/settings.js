@@ -12,6 +12,7 @@ const EmbedConfirm = require("../../components/embeds/EmbedConfirm");
 const {
   ButtonsConfirmDelete,
 } = require("../../components/buttons/ButtonConfirm");
+const checkAndCreateUser = require("../../utils/checkAndCreateUser");
 
 const data = new SlashCommandBuilder()
   .setName("settings")
@@ -70,6 +71,8 @@ async function run({ interaction, client, handler }) {
 
   const subcommandGroup = interaction.options.getSubcommandGroup();
   const subcommand = interaction.options.getSubcommand();
+
+  await checkAndCreateUser(interaction);
 
   if (subcommandGroup) {
     switch (subcommandGroup) {

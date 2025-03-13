@@ -16,6 +16,7 @@ const {
   ButtonsConfirmDelete,
 } = require("../../components/buttons/ButtonConfirm");
 const MenuProject = require("../../components/menuSelect/MenuProject");
+const checkAndCreateUser = require("../../utils/checkAndCreateUser");
 
 // Data for the command
 const data = new SlashCommandBuilder()
@@ -56,6 +57,8 @@ const data = new SlashCommandBuilder()
  */
 async function run({ interaction, client, handler }) {
   const subcommand = interaction.options.getSubcommand();
+
+  await checkAndCreateUser(interaction);
 
   switch (subcommand) {
     //Add member to project command

@@ -20,6 +20,8 @@ const { getProjectsFromInteraction } = require("../../utils/project");
 const { getAllMembers } = require("../../utils/member");
 const EmbedConfirm = require("../../components/embeds/EmbedConfirm");
 const { ListChannelWrorkSpace } = require("../../components/list/ListData");
+const User = require("../../models/User");
+const checkAndCreateUser = require("../../utils/checkAndCreateUser");
 
 //Function to handle the slash command run
 /**
@@ -35,6 +37,8 @@ async function run({ interaction, client, handler }) {
       ephemeral: true,
     });
   }
+
+  await checkAndCreateUser(interaction);
 
   const subCommandGroup = interaction.options.getSubcommandGroup();
   const subCommand = interaction.options.getSubcommand();
@@ -179,43 +183,6 @@ const data = new SlashCommandBuilder()
               .setAutocomplete(true)
           )
       )
-  )
-
-  //Workspace for the project commands
-  .addSubcommandGroup((subcommandGroup) =>
-    subcommandGroup
-      .setName("workspace")
-      .setDescription("Workspace configuration for project")
-
-      //Create workspace for project command
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName("create")
-          .setDescription("Create a workspace for the project")
-          .addStringOption((option) =>
-            option
-              .setName("project")
-              .setDescription("The project you want to create a workspace for!")
-              .setRequired(true)
-              .setAutocomplete(true)
-          )
-      )
-
-      //Delete workspace for project command
-      .addSubcommand((subcommand) =>
-        subcommand
-          .setName("delete")
-          .setDescription("Delete a workspace for the project")
-          .addStringOption((option) =>
-            option
-              .setName("project")
-              .setDescription(
-                "The project you want to delete the workspace for!"
-              )
-              .setRequired(true)
-              .setAutocomplete(true)
-          )
-      )
   );
 
 module.exports = {
@@ -253,6 +220,31 @@ async function handleCreate(interaction) {
       content: `Project **${projectName}** already exists. Please choose a different name.`,
     });
     return;
+  }
+
+  const userExist = await User.findOne({
+    userId: interaction.user.id,
+  });
+
+  if (!userExist) {
+    const newUser = new User({
+      userId: interaction.user.id,
+    });
+
+    await newUser.save();
+  }
+
+  if (userExist && userExist.userType === "free") {
+    countProjects = await Project.countDocuments({
+      ownerId: interaction.user.id,
+    });
+
+    if (countProjects >= 1) {
+      interaction.editReply({
+        content: `You have reached the maximum number of projects for free users. Please upgrade to premium to create more projects.`,
+      });
+      return;
+    }
   }
 
   const project = new Project({
@@ -728,167 +720,4 @@ async function handleCreateRole(interaction) {
       content: `Failed to create role. Please check my permissions.`,
     });
   }
-}
-
-//Function to handle create workspace for project
-async function handleCreateWorkspace(interaction) {
-  const projectId = interaction.options.getString("project");
-
-  if (!projectId) {
-    interaction.reply({
-      content: "Please choose a project to create a workspace for.",
-      ephemeral: true,
-    });
-  }
-
-  const project = await Project.findOne({
-    guildId: interaction.guild.id,
-    _id: projectId,
-  });
-
-  await interaction.deferReply();
-
-  if (!project) {
-    interaction.editReply({
-      content: `Project does not exist. Please use command \`/project list\` to see all your projects.`,
-    });
-    return;
-  }
-
-  if (project.workSpaceId) {
-    interaction.editReply({
-      content: `Workspace for project **${project.name}** already exists. Please try another project.`,
-    });
-    return;
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle("Create Workspace")
-    .setColor("Random")
-    .setDescription(`I will create the structure for your workspace in project **${
-    project.name
-  }** like this: \n
-                    🔽 **${project.name
-                      .toUpperCase()
-                      .trim()
-                      .replace(/ /g, "-")}**\n
-                    **#** notification\n
-                    **#** chat\n
-                    **#** reports\n
-                    🔈voice-meeting`);
-
-  const buttonsComfirm = ButtonsConfirmCreate;
-
-  const actionRow = new ActionRowBuilder().addComponents(buttonsComfirm);
-
-  const reply = await interaction.editReply({
-    embeds: [embed],
-    components: [actionRow],
-  });
-
-  const collector = reply.createMessageComponentCollector({
-    filter: (i) => i.user.id === interaction.user.id,
-    time: 60_000,
-  });
-
-  collector.on("collect", async (i) => {
-    if (i.customId === "create") {
-      const categoryChannel = await i.guild.channels.create({
-        name: project.name,
-        type: ChannelType.GuildCategory,
-      });
-
-      const channels = ListChannelWrorkSpace;
-
-      for (const channel of channels) {
-        await categoryChannel.children.create({
-          name: channel.name,
-          type: channel.type,
-        });
-      }
-
-      await project.updateOne({ workSpaceId: categoryChannel.id });
-
-      await i.update({
-        content: `Workspace for project **${project.name}** created successfully.`,
-        embeds: [],
-        components: [],
-      });
-    } else if (i.customId === "cancel") {
-      await i.update({
-        content: `Workspace creation canceled.`,
-        embeds: [],
-        components: [],
-      });
-    }
-  });
-}
-
-//Function to handle delete workspace for project
-async function handleDeleteWorkspace(interaction) {
-  const projectId = interaction.options.getString("project");
-
-  if (!projectId) {
-    interaction.reply({
-      content: "Please choose a project to delete a workspace for.",
-      ephemeral: true,
-    });
-  }
-
-  const project = await Project.findOne({
-    guildId: interaction.guild.id,
-    _id: projectId,
-  });
-
-  const embedConfirm = EmbedConfirm(
-    "Delete Workspace",
-    `Are you sure you want to delete the workspace for project **${project.name}**?`,
-    "You have 60 seconds to confirm."
-  );
-
-  const buttonsConfirm = ButtonsConfirmDelete;
-
-  const actionRow = new ActionRowBuilder().addComponents(buttonsConfirm);
-
-  await interaction.deferReply();
-
-  const reply = await interaction.editReply({
-    embeds: [embedConfirm],
-    components: [actionRow],
-  });
-
-  const collector = reply.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    filter: (i) => i.user.id === interaction.user.id,
-    time: 60_000,
-  });
-
-  collector.on("collect", async (i) => {
-    if (i.customId === "confirm") {
-      const categoryChannel = interaction.guild.channels.cache.get(
-        project.workSpaceId
-      );
-
-      if (categoryChannel) {
-        for (const channel of categoryChannel.children.cache.values()) {
-          await channel.delete();
-        }
-        await categoryChannel.delete();
-      }
-
-      await project.updateOne({ workSpaceId: null });
-
-      i.update({
-        content: `Workspace for project **${project.name}** has been removed.`,
-        embeds: [],
-        components: [],
-      });
-    } else if (i.customId === "cancel") {
-      i.update({
-        content: "Remove workspace has been cancelled.",
-        embeds: [],
-        components: [],
-      });
-    }
-  });
 }
