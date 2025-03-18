@@ -36,6 +36,7 @@ module.exports = (client) => {
         const roleId = project.roleId;
         const currentTime = new Date();
         const meetingTime = new Date(meeting.time);
+        meetingTime.setHours(meetingTime.getHours() - 7);
         const timeDifference = meetingTime - currentTime;
 
         if (timeDifference > 0 && timeDifference <= 30 * 60 * 1000) {

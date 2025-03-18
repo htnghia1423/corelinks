@@ -116,6 +116,22 @@ const data = new SlashCommandBuilder()
               .setAutocomplete(true)
           )
       )
+
+      // View all tasks in a project that are assigned to me command
+      .addSubcommand((subcommand) =>
+        subcommand
+          .setName("my-tasks")
+          .setDescription("View all tasks in a project that are assigned to me")
+          .addStringOption((option) =>
+            option
+              .setName("project")
+              .setDescription(
+                "The project you want to view all tasks assigned to you"
+              )
+              .setRequired(true)
+              .setAutocomplete(true)
+          )
+      )
   )
 
   // Remove command group
@@ -216,6 +232,11 @@ async function run({ interaction, client, handler }) {
           // Run the view all tasks in a project command
           case "all":
             await handleViewAllTask(interaction);
+            break;
+
+          // Run the view all tasks in a project that are assigned to me command
+          case "my-tasks":
+            await handleViewMyTasks(interaction);
             break;
         }
     }
@@ -779,6 +800,7 @@ async function handleViewAllTask(interaction) {
   if (!projectId) {
     await interaction.reply({
       content: "Please choose a project!",
+      ephemeral: true,
     });
     return;
   }
@@ -787,6 +809,14 @@ async function handleViewAllTask(interaction) {
     _id: projectId,
   });
 
+  if (!project) {
+    await interaction.reply({
+      content: "Project not found!",
+      ephemeral: true,
+    });
+    return;
+  }
+
   const tasks = await Task.find({
     projectId: projectId,
   });
@@ -794,59 +824,32 @@ async function handleViewAllTask(interaction) {
   if (tasks.length === 0) {
     await interaction.reply({
       content:
-        "There are no tasks in this project! Please create one by using `/task create`",
+        "There are no tasks in this project! Please create one by using `/task create`.",
+      ephemeral: true,
     });
     return;
   }
 
-  const taskFields = [];
-
-  tasks.forEach((task) => {
-    taskFields.push({
-      name: "Task",
-      value: task.title,
-      inline: true,
-    });
-
-    taskFields.push({
-      name: "Status",
-      value: task.status || "No status provided",
-      inline: true,
-    });
-
-    taskFields.push({
-      name: "Priority",
-      value: task.priority || "No priority provided",
-      inline: true,
-    });
-
-    taskFields.push({
-      name: "Due Date",
-      value: convertToUTC(task.dueDate) || "No due date provided",
-      inline: true,
-    });
-
-    taskFields.push({
-      name: "===========================",
-      value: " ",
-      inline: false,
-    });
+  let taskList = `**Tasks in project: ${project.name}**\n\n`;
+  taskList += "```";
+  tasks.forEach((task, index) => {
+    taskList += `${index + 1}. Task: ${task.title}\n`;
+    taskList += `   Status: ${task.status || "No status provided"}\n`;
+    taskList += `   Priority: ${task.priority || "No priority provided"}\n`;
+    taskList += `   Due Date: ${
+      convertToUTC(task.dueDate) || "No due date provided"
+    }\n`;
+    taskList += "-------------------------\n";
   });
-
-  const embed = new EmbedBuilder()
-    .setTitle(`Tasks in project **${project.name}**`)
-    .setDescription("Here are the tasks in this project:")
-    .setColor("Random")
-    .addFields(taskFields);
+  taskList += "```";
 
   const menuTasks = MenuTask(tasks);
-
   const actionRow = new ActionRowBuilder().addComponents(menuTasks);
 
   await interaction.deferReply();
 
   const reply = await interaction.editReply({
-    embeds: [embed],
+    content: taskList,
     components: [actionRow],
   });
 
@@ -859,12 +862,105 @@ async function handleViewAllTask(interaction) {
   collector.on("collect", async (i) => {
     const task = tasks.find((task) => task._id.toString() === i.values[0]);
 
+    if (!task) {
+      await i.reply({
+        content: "Task not found!",
+        ephemeral: true,
+      });
+      return;
+    }
+
     const embed = EmbedTaskInfo(task, interaction);
 
-    await i.deferReply();
-
-    await i.editReply({
+    await i.update({
       embeds: [embed],
+      components: [],
+    });
+  });
+}
+
+// Function to handle view all tasks in a project that are assigned to me
+async function handleViewMyTasks(interaction) {
+  const projectId = interaction.options.getString("project");
+
+  if (!projectId) {
+    await interaction.reply({
+      content: "Please choose a project!",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const project = await Project.findOne({
+    _id: projectId,
+  });
+
+  if (!project) {
+    await interaction.reply({
+      content: "Project not found!",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const tasks = await Task.find({
+    projectId: projectId,
+    assigneesId: { $in: [interaction.user.id] },
+  });
+
+  if (tasks.length === 0) {
+    await interaction.reply({
+      content: `There are no tasks in this project assigned to you! Please ask the project owner to assign you to a task by using command \`/task set assignee\`.`,
+      ephemeral: true,
+    });
+    return;
+  }
+
+  let taskList = `**Tasks assigned to you in project: ${project.name}**\n\n`;
+  taskList += "```";
+  tasks.forEach((task, index) => {
+    taskList += `${index + 1}. Task: ${task.title}\n`;
+    taskList += `   Status: ${task.status || "No status provided"}\n`;
+    taskList += `   Priority: ${task.priority || "No priority provided"}\n`;
+    taskList += `   Due Date: ${
+      convertToUTC(task.dueDate) || "No due date provided"
+    }\n`;
+    taskList += "-------------------------\n";
+  });
+  taskList += "```";
+
+  const menuTasks = MenuTask(tasks);
+  const actionRow = new ActionRowBuilder().addComponents(menuTasks);
+
+  await interaction.deferReply();
+
+  const reply = await interaction.editReply({
+    content: taskList,
+    components: [actionRow],
+  });
+
+  const collector = reply.createMessageComponentCollector({
+    componentType: ComponentType.StringSelect,
+    filter: (i) => i.user.id === interaction.user.id,
+    time: 60_000,
+  });
+
+  collector.on("collect", async (i) => {
+    const task = tasks.find((task) => task._id.toString() === i.values[0]);
+
+    if (!task) {
+      await i.reply({
+        content: "Task not found!",
+        ephemeral: true,
+      });
+      return;
+    }
+
+    const embed = EmbedTaskInfo(task, interaction);
+
+    await i.update({
+      embeds: [embed],
+      components: [],
     });
   });
 }
