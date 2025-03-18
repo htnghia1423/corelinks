@@ -20,7 +20,7 @@ module.exports = (task, interaction) => {
       },
       {
         name: "Status",
-        value: task.status,
+        value: task.status || "No status provided",
       },
       {
         name: "Due Date",
