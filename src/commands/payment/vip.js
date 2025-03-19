@@ -29,7 +29,7 @@ async function run({ interaction, client, handler }) {
   if (user.userType === "premium") {
     return interaction.reply({
       content: "You are already a premium user",
-      ephemeral: true,
+      flags: 64,
     });
   }
 
